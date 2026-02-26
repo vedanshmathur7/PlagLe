@@ -1,0 +1,3 @@
+Database Management Systems use SQL for queries.
+
+A quick brown fox jumped over a lazy dog.
