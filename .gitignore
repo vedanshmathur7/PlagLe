@@ -12,6 +12,14 @@ env/
 
 # Generated reports
 reports/
+*.pdf
+
+# Uploaded files
+uploads/
+
+# Logs
+logs/
+*.log
 
 # Database files
 *.db
@@ -38,3 +46,6 @@ desktop.ini
 dist/
 build/
 *.egg-info/
+
+# Docker
+docker-compose.override.yml
