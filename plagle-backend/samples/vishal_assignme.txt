@@ -1,0 +1,91 @@
+Banker’s Algorithm (Formal Academic Style)**
+
+## **Title: Implementation of Banker’s Algorithm for Deadlock Avoidance**
+
+### **Objective**
+
+The objective of this experiment is to understand and implement the **Banker’s Algorithm**, which is used in operating systems to prevent deadlocks. The algorithm determines whether a system is in a safe state before allocating resources to processes.
+
+---
+
+## **Introduction**
+
+Deadlock is a situation in which a group of processes are unable to proceed because each process is waiting for a resource that is held by another process. To prevent such situations, operating systems use various deadlock avoidance techniques. One of the most commonly used methods is the **Banker’s Algorithm**, introduced by Edsger Dijkstra.
+
+The algorithm works similarly to a banker who decides whether to grant a loan to customers. The banker checks whether granting the loan will leave enough resources to satisfy the needs of all other customers. If yes, the system remains in a safe state.
+
+---
+
+## **Key Concepts**
+
+### **1. Allocation Matrix**
+
+This matrix represents the number of resources currently allocated to each process.
+
+### **2. Maximum Matrix**
+
+This matrix shows the maximum number of resources that each process may request.
+
+### **3. Need Matrix**
+
+The need matrix is calculated using the formula:
+
+Need = Maximum − Allocation
+
+It indicates the remaining resources required by each process to complete execution.
+
+### **4. Available Resources**
+
+This represents the number of resources currently available in the system.
+
+---
+
+## **Algorithm Steps**
+
+1. Input the number of processes and resource types.
+2. Enter the allocation matrix.
+3. Enter the maximum matrix.
+4. Calculate the need matrix.
+5. Determine the available resources.
+6. Check if all processes can complete execution safely.
+7. If a safe sequence exists, the system is in a safe state.
+
+---
+
+## **Example**
+
+Number of Processes = 3
+Number of Resources = 3
+
+Allocation Matrix:
+
+P0: 0 1 0
+P1: 2 0 0
+P2: 3 0 2
+
+Maximum Matrix:
+
+P0: 7 5 3
+P1: 3 2 2
+P2: 9 0 2
+
+Available Resources:
+
+3 3 2
+
+Need Matrix:
+
+P0: 7 4 3
+P1: 1 2 2
+P2: 6 0 0
+
+Safe Sequence:
+
+P1 → P0 → P2
+
+---
+
+## **Conclusion**
+
+The Banker’s Algorithm is an effective technique for avoiding deadlocks in operating systems. By checking the safety of resource allocation before granting requests, the system ensures that all processes can complete execution without entering a deadlock state.
+

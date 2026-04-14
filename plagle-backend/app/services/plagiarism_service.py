@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from similarity_engine import (
+from app.utils.similarity_engine import (
     extract_text_from_txt,
     extract_text_from_pdf,
     extract_text_from_docx,

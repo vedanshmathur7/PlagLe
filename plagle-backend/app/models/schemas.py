@@ -122,6 +122,18 @@ class BatchUploadResponse(BaseModel):
     errors: List[str]
 
 
+class DirectCompareResponse(BaseModel):
+    """Response for on-the-fly direct document comparison"""
+    file1_name: str
+    file2_name: str
+    student1_id: int
+    student2_id: int
+    assignment_id: int
+    score: float = Field(..., description="Similarity score (0.0 - 1.0)")
+    score_percentage: float = Field(..., description="Score as percentage")
+    risk_level: str
+    message: str
+
 # ====== Complete Flow Response ======
 
 class CompleteCheckResponse(BaseModel):

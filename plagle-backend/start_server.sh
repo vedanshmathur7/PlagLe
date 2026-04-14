@@ -7,9 +7,9 @@ echo ""
 
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
-    echo "❌ Virtual environment not found!"
-    echo "Please run: python -m venv .venv"
-    exit 1
+    echo "⚠️  Virtual environment not found! Creating one..."
+    python3 -m venv .venv
+    echo "✅ Virtual environment created."
 fi
 
 # Activate virtual environment

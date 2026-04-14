@@ -18,17 +18,27 @@ from app.models.schemas import (
     SimilarityResult,
     FileUploadResponse,
     ErrorResponse,
-    HealthResponse
+    HealthResponse,
+    DirectCompareResponse
 )
 from app.services.file_service import FileService
 from app.services.plagiarism_service import PlagiarismService
 from app.services.report_service import ReportService
 
+# Import extraction logic for direct compare
+from app.utils.similarity_engine import (
+    extract_text_from_txt,
+    extract_text_from_pdf,
+    extract_text_from_docx,
+    preprocess_text,
+    calculate_similarity
+)
+
 # Import classify_risk from report_generator for risk level calculation
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from report_generator import classify_risk
+from app.utils.report_generator import classify_risk
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -90,6 +100,16 @@ async def check_plagiarism_complete(
         
         # Step 1 & 2: Create submission and upload file
         cursor = db.cursor(dictionary=True)
+        
+        # Validate that the assignment exists
+        cursor.execute("SELECT 1 FROM Assignment WHERE assignment_id = %s", (assignment_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Assignment {assignment_id} not found")
+            
+        # Validate that the student exists
+        cursor.execute("SELECT 1 FROM User WHERE user_id = %s AND role = 'student'", (student_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Student {student_id} not found")
         
         # Create submission
         cursor.execute(
@@ -208,6 +228,78 @@ async def check_plagiarism_complete(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ====== Direct Compare (On-the-fly) ======
+
+@router.post("/compare-two-files", response_model=DirectCompareResponse)
+async def compare_two_files_directly(
+    file1: UploadFile = File(...),
+    file2: UploadFile = File(...),
+    assignment_id: int = Form(...),
+    student_id_1: int = Form(...),
+    student_id_2: int = Form(...),
+):
+    """
+    Directly compare two files on-the-fly without saving to the database.
+    Useful for quick comparisons or avoiding DB storage for everything.
+    """
+    try:
+        # Helper to extract based on extension
+        async def extract_text(file: UploadFile) -> str:
+            content = await file.read()
+            filename = file.filename.lower()
+            
+            # To simulate file extraction we need paths, so we save to temporary files
+            import tempfile
+            import os
+            
+            suffix = os.path.splitext(filename)[1]
+            if not suffix: suffix = '.txt'
+                
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(content)
+                tmp.flush()
+                tmp_path = tmp.name
+                
+            try:
+                if suffix == '.pdf':
+                    text = extract_text_from_pdf(tmp_path)
+                elif suffix == '.docx':
+                    text = extract_text_from_docx(tmp_path)
+                else:
+                    text = extract_text_from_txt(tmp_path)
+                return text
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+
+        text1 = await extract_text(file1)
+        text2 = await extract_text(file2)
+        
+        # Preprocess
+        cleaned1 = preprocess_text(text1)
+        cleaned2 = preprocess_text(text2)
+        
+        # Compare
+        score = calculate_similarity(cleaned1, cleaned2)
+        risk_level, _ = classify_risk(score)
+        
+        return DirectCompareResponse(
+            file1_name=file1.filename,
+            file2_name=file2.filename,
+            student1_id=student_id_1,
+            student2_id=student_id_2,
+            assignment_id=assignment_id,
+            score=score,
+            score_percentage=score * 100.0,
+            risk_level=risk_level,
+            message="Comparison successful (on-the-fly)"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in direct comparison: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ====== Individual Endpoints ======
 
 @router.post("/upload", response_model=FileUploadResponse)
@@ -222,8 +314,18 @@ async def upload_file(
     Use this if you want to separate upload from plagiarism check.
     """
     try:
-        # Create submission
+        # Validate that the assignment exists
         cursor = db.cursor()
+        cursor.execute("SELECT 1 FROM Assignment WHERE assignment_id = %s", (assignment_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Assignment {assignment_id} not found")
+            
+        # Validate that the student exists
+        cursor.execute("SELECT 1 FROM User WHERE user_id = %s AND role = 'student'", (student_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Student {student_id} not found")
+
+        # Create submission
         cursor.execute(
             "INSERT INTO Submission (assignment_id, student_id) VALUES (%s, %s)",
             (assignment_id, student_id)

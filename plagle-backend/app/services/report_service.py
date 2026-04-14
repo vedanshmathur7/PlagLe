@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from report_generator import classify_risk, generate_pdf_report
+from app.utils.report_generator import classify_risk, generate_pdf_report
 
 from app.core.config import get_settings
 

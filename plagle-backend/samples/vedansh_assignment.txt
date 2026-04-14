@@ -1,0 +1,81 @@
+Banker’s Algorithm (Different Style, Simpler Explanation)**
+
+## **Title: Deadlock Prevention Using Banker’s Algorithm**
+
+### **Aim**
+
+To design and analyze a system that uses the Banker’s Algorithm to check whether resource allocation keeps the system safe and prevents deadlock conditions.
+
+---
+
+## **Overview**
+
+In multitasking operating systems, several processes run at the same time and compete for limited resources such as memory, CPU time, or input/output devices. When resources are not managed properly, the system may enter a deadlock, where processes are stuck waiting forever.
+
+The Banker’s Algorithm is a safety-checking method that decides whether it is safe to give resources to a process. It simulates the allocation and verifies that every process will eventually finish execution.
+
+---
+
+## **Important Terms**
+
+**Allocation**
+The number of resources already assigned to a process.
+
+**Maximum Demand**
+The total number of resources a process may require.
+
+**Need**
+The additional resources required to complete execution.
+
+Formula:
+
+Need = Max − Allocation
+
+**Available**
+Resources that are free and ready to be assigned.
+
+---
+
+## **Working Procedure**
+
+The algorithm follows these steps:
+
+1. Read the number of processes and resources.
+2. Store the allocation and maximum demand values.
+3. Calculate the need matrix.
+4. Find the currently available resources.
+5. Select a process whose need is less than or equal to available resources.
+6. Release its resources after completion.
+7. Repeat until all processes finish or no process can proceed.
+
+If all processes complete successfully, the system is considered safe.
+
+---
+
+## **Illustrative Case**
+
+Processes:
+
+P0, P1, P2
+
+Available Resources:
+
+3 units of R1
+3 units of R2
+2 units of R3
+
+After performing the safety check, the following execution order is possible:
+
+Safe Order:
+
+P1 → P2 → P0
+
+This confirms that the system will not enter a deadlock.
+
+---
+
+## **Summary**
+
+The Banker’s Algorithm helps operating systems manage resources efficiently by ensuring safe execution order. It is widely used as a deadlock avoidance technique because it prevents unsafe allocations before they happen.
+
+---
