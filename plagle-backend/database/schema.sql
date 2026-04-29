@@ -50,6 +50,7 @@ CREATE TABLE Document (
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(500) NOT NULL,
     file_hash VARCHAR(64) NOT NULL, 
+    extracted_text TEXT,
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (submission_id) REFERENCES Submission(submission_id) ON DELETE CASCADE
 );
