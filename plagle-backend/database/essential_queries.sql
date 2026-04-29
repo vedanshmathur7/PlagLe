@@ -1,10 +1,6 @@
 -- ==============================================================================
--- PLAGLE DBMS PROJECT - ADVANCED SQL COMPONENTS (VIVA DEMONSTRATION)
+-- PLAGLE DBMS PROJECT - ADVANCED SQL COMPONENTS  
 -- ==============================================================================
--- This file contains all the advanced database components required for the viva.
--- You can run this entire file in MySQL Workbench, or copy-paste components
--- directly into your MySQL terminal.
--- Example usages are provided as comments at the end of each section.
 
 -- ------------------------------------------------------------------------------
 -- 1. STORED PROCEDURE
@@ -25,8 +21,6 @@ BEGIN
 END //
 DELIMITER ;
 
--- [EXAMPLE USAGE IN MYSQL TERMINAL]
--- Type this exactly in your MySQL terminal to see Student #1's report:
 -- CALL GetStudentReport(1);
 
 
@@ -52,8 +46,6 @@ JOIN Submission sub2 ON d2.submission_id = sub2.submission_id
 JOIN User u2 ON sub2.student_id = u2.user_id
 WHERE s.score >= 0.15;
 
--- [EXAMPLE USAGE IN MYSQL TERMINAL]
--- Type this to see all flagged high-risk similarities:
 -- SELECT * FROM HighRiskPlagiarism;
 
 
@@ -68,8 +60,6 @@ FROM Submission
 GROUP BY assignment_id
 HAVING COUNT(submission_id) > 5;
 
--- [EXAMPLE USAGE IN MYSQL TERMINAL]
--- Type this to see assignments with >5 submissions:
 -- SELECT * FROM PopularAssignments;
 
 
@@ -92,8 +82,6 @@ WHERE user_id IN (
     )
 );
 
--- [EXAMPLE USAGE IN MYSQL TERMINAL]
--- Type this to see a list of students in Course #1:
 -- SELECT * FROM StudentsInCourse;
 
 
@@ -110,6 +98,4 @@ SELECT
     MAX(score) AS max_score 
 FROM Similarity;
 
--- [EXAMPLE USAGE IN MYSQL TERMINAL]
--- Type this to see total comparisons, average score, and highest score ever recorded:
 -- SELECT * FROM OverallSimilarityStats;
