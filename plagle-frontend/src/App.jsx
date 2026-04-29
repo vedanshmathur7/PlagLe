@@ -1,26 +1,145 @@
-import { useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { FileDown } from 'lucide-react';
 import './App.css';
+import { Sidebar } from './components/layout/Sidebar';
+import { Topbar } from './components/layout/Topbar';
+import { AnalyticsPanel } from './components/sections/AnalyticsPanel';
+import { FindingsTable } from './components/sections/FindingsTable';
+import { HeroSection } from './components/sections/HeroSection';
+import { SubmissionPanel } from './components/sections/SubmissionPanel';
+import { Modal } from './components/ui/Modal';
+import { ToastStack } from './components/ui/ToastStack';
+import { buildFindings, deriveDashboardMetrics, getRiskTone } from './utils/dashboard';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const PAGE_SIZE = 5;
+
+const getInitialTheme = () => {
+  if (typeof window === 'undefined') {
+    return 'dark';
+  }
+
+  const storedTheme = window.localStorage.getItem('plagle-theme');
+
+  if (storedTheme === 'light' || storedTheme === 'dark') {
+    return storedTheme;
+  }
+
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+};
 
 function App() {
+  const [theme, setTheme] = useState(getInitialTheme);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [file, setFile] = useState(null);
   const [assignmentId, setAssignmentId] = useState('1');
-  const [studentId, setStudentId] = useState('2');
+  const [studentId, setStudentId] = useState('5');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [sortKey, setSortKey] = useState('score');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedFinding, setSelectedFinding] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+  const deferredSearch = useDeferredValue(searchTerm);
+  const reportBaseUrl = API_URL.replace(/\/api\/v1\/?$/, '');
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('plagle-theme', theme);
+  }, [theme]);
+
+  const findings = useMemo(() => buildFindings(result), [result]);
+  const metrics = useMemo(() => deriveDashboardMetrics(findings), [findings]);
+
+  const filteredFindings = useMemo(() => {
+    const normalizedQuery = deferredSearch.trim().toLowerCase();
+    const sorted = [...findings]
+      .filter((item) => {
+        const matchesQuery =
+          !normalizedQuery ||
+          item.doc2_name.toLowerCase().includes(normalizedQuery) ||
+          item.risk_level.toLowerCase().includes(normalizedQuery);
+        const matchesRisk = riskFilter === 'all' || item.tone === riskFilter;
+
+        return matchesQuery && matchesRisk;
+      })
+      .sort((left, right) => {
+        const direction = sortDirection === 'asc' ? 1 : -1;
+
+        if (sortKey === 'document') {
+          return left.doc2_name.localeCompare(right.doc2_name) * direction;
+        }
+
+        if (sortKey === 'risk') {
+          const rank = { safe: 1, warning: 2, danger: 3 };
+          return (rank[left.tone] - rank[right.tone]) * direction;
+        }
+
+        if (sortKey === 'report') {
+          return ((left.report ? 1 : 0) - (right.report ? 1 : 0)) * direction;
+        }
+
+        return ((left.score_percentage ?? 0) - (right.score_percentage ?? 0)) * direction;
+      });
+
+    return sorted;
+  }, [deferredSearch, findings, riskFilter, sortDirection, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredFindings.length / PAGE_SIZE));
+  const paginatedFindings = filteredFindings.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearch, riskFilter, sortDirection, sortKey]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const dismissToast = (id) => {
+    setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== id));
+  };
+
+  const showToast = (title, description, tone = 'info') => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    setToasts((currentToasts) => [...currentToasts, { id, title, description, tone }]);
+    window.setTimeout(() => dismissToast(id), 4200);
+  };
+
+  const handleFileChange = (nextFile) => {
+    setFile(nextFile);
+    if (nextFile) {
+      setError('');
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSortChange = (nextKey) => {
+    if (sortKey === nextKey) {
+      setSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortKey(nextKey);
+    setSortDirection(nextKey === 'document' ? 'asc' : 'desc');
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     if (!file) {
-      setError('Please select a file to upload');
+      const message = 'Please select a document before starting the scan.';
+      setError(message);
+      showToast('Document required', message, 'error');
       return;
     }
 
@@ -46,101 +165,150 @@ function App() {
       }
 
       const data = await response.json();
-      setResult(data);
+
+      startTransition(() => {
+        setResult(data);
+        setSelectedFinding(null);
+      });
+
+      showToast(
+        'Analysis complete',
+        data.plagiarism_check?.results?.length
+          ? 'Similarity findings are ready for review.'
+          : 'No significant plagiarism was detected.',
+        'success',
+      );
     } catch (err) {
-      setError(err.message || 'Something went wrong during analysis');
+      const message = err.message || 'Something went wrong during analysis.';
+      setError(message);
+      showToast('Analysis failed', message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const highlightedFinding = selectedFinding
+    ? {
+        ...selectedFinding,
+        recommendation:
+          getRiskTone(selectedFinding.risk_level) === 'danger'
+            ? 'Prioritize manual review and compare the generated PDF evidence before grading.'
+            : 'Review the similarity context and validate whether overlap is expected or cited.',
+      }
+    : null;
+
   return (
-    <div className="container">
-      <header className="header">
-        <h1>PlagLe</h1>
-        <p>Intelligent Plagiarism Detection System</p>
-      </header>
+    <div className="dashboard-shell">
+      <div className="background-orb background-orb-one" />
+      <div className="background-orb background-orb-two" />
 
-      <main className="main-content">
-        <section className="upload-section">
-          <h2>Check Document</h2>
-          <form onSubmit={handleSubmit} className="upload-form">
-            <div className="form-group">
-              <label htmlFor="file">Upload Document (.txt, .pdf, .docx)</label>
-              <input 
-                type="file" 
-                id="file" 
-                onChange={handleFileChange}
-                accept=".txt,.pdf,.docx"
-              />
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="assignmentId">Assignment ID</label>
-                <input 
-                  type="number" 
-                  id="assignmentId" 
-                  value={assignmentId} 
-                  onChange={(e) => setAssignmentId(e.target.value)} 
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="studentId">Student ID</label>
-                <input 
-                  type="number" 
-                  id="studentId" 
-                  value={studentId} 
-                  onChange={(e) => setStudentId(e.target.value)} 
-                  required
-                />
-              </div>
-            </div>
-            {error && <div className="error-message">{error}</div>}
-            <button type="submit" disabled={loading || !file} className="submit-btn">
-              {loading ? 'Analyzing...' : 'Run Plagiarism Check'}
-            </button>
-          </form>
-        </section>
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((currentValue) => !currentValue)}
+        metrics={metrics}
+        hasResult={Boolean(result)}
+      />
 
-        {result && (
-          <section className="results-section">
-            <h2>Analysis Results</h2>
-            <div className="result-card summary">
-              <p><strong>Checked File:</strong> {result.document?.file_name}</p>
-              <p><strong>Status:</strong> {result.success ? "Completed Successfully" : "Failed"}</p>
+      <div className={`dashboard-main ${sidebarCollapsed ? 'dashboard-main-expanded' : ''}`}>
+        <Topbar
+          theme={theme}
+          onToggleTheme={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
+          onToggleSidebar={() => setSidebarCollapsed((currentValue) => !currentValue)}
+          sidebarCollapsed={sidebarCollapsed}
+          activeFile={file?.name}
+          totalFindings={metrics.totalMatches}
+        />
+
+        <main className="dashboard-content">
+          <HeroSection file={file} metrics={metrics} loading={loading} />
+
+          <div className="content-grid">
+            <SubmissionPanel
+              file={file}
+              assignmentId={assignmentId}
+              studentId={studentId}
+              loading={loading}
+              error={error}
+              onFileChange={handleFileChange}
+              onAssignmentChange={setAssignmentId}
+              onStudentChange={setStudentId}
+              onSubmit={handleSubmit}
+            />
+
+            <AnalyticsPanel
+              loading={loading}
+              result={result}
+              metrics={metrics}
+              checkedFile={result?.document?.file_name || file?.name}
+            />
+          </div>
+
+          <FindingsTable
+            loading={loading}
+            result={result}
+            findings={paginatedFindings}
+            totalFindings={filteredFindings.length}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            riskFilter={riskFilter}
+            onRiskFilterChange={setRiskFilter}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={handleSortChange}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            onSelectFinding={setSelectedFinding}
+            reportBaseUrl={reportBaseUrl}
+          />
+        </main>
+      </div>
+
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
+      <Modal
+        open={Boolean(highlightedFinding)}
+        title={highlightedFinding?.doc2_name}
+        subtitle={highlightedFinding ? `${highlightedFinding.risk_level} • ${highlightedFinding.score_percentage.toFixed(2)}% match` : ''}
+        onClose={() => setSelectedFinding(null)}
+      >
+        {highlightedFinding && (
+          <div className="modal-content-stack">
+            <div className="detail-grid">
+              <div className="detail-card">
+                <span>Compared document</span>
+                <strong>{highlightedFinding.doc2_name}</strong>
+              </div>
+              <div className="detail-card">
+                <span>Similarity intensity</span>
+                <strong>{highlightedFinding.score_percentage.toFixed(2)}%</strong>
+              </div>
             </div>
 
-            {result.plagiarism_check?.results?.length > 0 ? (
-              <div className="findings">
-                <h3>Similarities Detected</h3>
-                {result.plagiarism_check.results.map((sim) => (
-                  <div key={sim.similarity_id} className={`result-card ${sim.risk_level === 'High Risk' ? 'high-risk' : ''}`}>
-                    <div className="sim-header">
-                      <span className="risk-badge">{sim.risk_level}</span>
-                      <span className="score-badge">{sim.score_percentage.toFixed(2)}% Match</span>
-                    </div>
-                    <p>Compared against <strong>{sim.doc2_name}</strong></p>
-                    {result.reports?.find(r => r.similarity_id === sim.similarity_id) && (
-                      <a 
-                        href={`http://localhost:8000${result.reports.find(r => r.similarity_id === sim.similarity_id).report_url}`} 
-                        className="download-btn"
-                        target="_blank" rel="noreferrer"
-                      >
-                        Download PDF Report
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="no-findings">
-                <p>✅ Looks good! No significant plagiarism detected.</p>
-              </div>
-            )}
-          </section>
+            <div className="modal-note">
+              <h4>Reviewer recommendation</h4>
+              <p>{highlightedFinding.recommendation}</p>
+            </div>
+
+            <div className="modal-actions">
+              {highlightedFinding.report && (
+                <a
+                  href={`${reportBaseUrl}${highlightedFinding.report.report_url}`}
+                  className="button button-primary"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <FileDown size={18} />
+                  Download PDF Report
+                </a>
+              )}
+              <a href="#scan" className="button button-secondary" onClick={() => setSelectedFinding(null)}>
+                Start another scan
+              </a>
+            </div>
+          </div>
         )}
-      </main>
+      </Modal>
     </div>
   );
 }
