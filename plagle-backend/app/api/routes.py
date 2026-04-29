@@ -188,12 +188,12 @@ async def check_plagiarism_complete(
             
             similarity_responses.append(SimilarityResult(
                 similarity_id=sim['similarity_id'],
-                doc1_id=sim['doc1_id'],
-                doc1_name=file.filename if sim['doc1_id'] == document_id else comp_doc['file_name'],
-                student1_name=f"{curr_student['first_name']} {curr_student['last_name']}" if sim['doc1_id'] == document_id else f"{comp_student['first_name']} {comp_student['last_name']}",
-                doc2_id=sim['doc2_id'],
-                doc2_name=comp_doc['file_name'] if sim['doc2_id'] != document_id else file.filename,
-                student2_name=f"{comp_student['first_name']} {comp_student['last_name']}" if sim['doc2_id'] != document_id else f"{curr_student['first_name']} {curr_student['last_name']}",
+                doc1_id=document_id,
+                doc1_name=file.filename,
+                student1_name=f"{curr_student['first_name']} {curr_student['last_name']}",
+                doc2_id=comp_doc['document_id'],
+                doc2_name=comp_doc['file_name'],
+                student2_name=f"{comp_student['first_name']} {comp_student['last_name']}",
                 score=sim['score'],
                 score_percentage=sim['score'] * 100,
                 risk_level=report_data['risk_level'],
@@ -220,6 +220,9 @@ async def check_plagiarism_complete(
             reports=reports
         )
         
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is
+        raise
     except mysql.connector.Error as e:
         logger.error(f"Database error: {e}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -393,14 +396,17 @@ async def check_plagiarism_only(
             # Fetch detailed info
             sim_details = plag_service.get_similarity_details(sim['similarity_id'])
             
+            # Determine which is the target document and which is the matched document
+            is_doc1_target = sim_details['doc1_id'] == document_id
+            
             similarity_responses.append(SimilarityResult(
                 similarity_id=sim['similarity_id'],
-                doc1_id=sim_details['doc1_id'],
-                doc1_name=sim_details['doc1_name'],
-                student1_name=f"{sim_details['stu1_first']} {sim_details['stu1_last']}",
-                doc2_id=sim_details['doc2_id'],
-                doc2_name=sim_details['doc2_name'],
-                student2_name=f"{sim_details['stu2_first']} {sim_details['stu2_last']}",
+                doc1_id=document_id,
+                doc1_name=sim_details['doc1_name'] if is_doc1_target else sim_details['doc2_name'],
+                student1_name=f"{sim_details['stu1_first']} {sim_details['stu1_last']}" if is_doc1_target else f"{sim_details['stu2_first']} {sim_details['stu2_last']}",
+                doc2_id=sim_details['doc2_id'] if is_doc1_target else sim_details['doc1_id'],
+                doc2_name=sim_details['doc2_name'] if is_doc1_target else sim_details['doc1_name'],
+                student2_name=f"{sim_details['stu2_first']} {sim_details['stu2_last']}" if is_doc1_target else f"{sim_details['stu1_first']} {sim_details['stu1_last']}",
                 score=sim['score'],
                 score_percentage=sim['score'] * 100,
                 risk_level=classify_risk(sim['score'])[0],

@@ -48,10 +48,15 @@ def get_similarity_data(db, similarity_id):
     return cursor.fetchone()
 
 # 3. Classify Risk
+# Slots aligned with SIMILARITY_THRESHOLD=0.15:
+#   0.00 – 0.15  → never surfaced (below detection threshold)
+#   0.15 – 0.35  → Low Risk    (flagged but minor overlap)
+#   0.35 – 0.60  → Medium Risk (notable similarity, review needed)
+#   0.60 – 1.00  → High Risk   (strong overlap, likely plagiarism)
 def classify_risk(score):
-    if score < 0.20:
+    if score < 0.35:
         return "Low Risk", "Green"
-    elif score <  0.50:
+    elif score < 0.60:
         return "Medium Risk", "Orange"
     else:
         return "High Risk", "Red"
