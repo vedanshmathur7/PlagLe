@@ -1,12 +1,16 @@
 """
 API Routes - FastAPI endpoint definitions
-Production-ready with proper error handling and documentation
 """
+# FastAPI web framework components
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from fastapi.responses import FileResponse
+
+# Standard python utilities
 from typing import List, Optional
 import logging
 from datetime import datetime
+
+# Database connector
 import mysql.connector
 
 from app.core.database import get_db
@@ -93,7 +97,7 @@ async def check_plagiarism_complete(
     4. Generate PDF reports for matches above threshold
     5. Return complete results with report URLs
     
-    Perfect for React frontend integration!
+    
     """
     try:
         logger.info(f"Starting plagiarism check for student {student_id}, assignment {assignment_id}")

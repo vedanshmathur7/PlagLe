@@ -39,7 +39,12 @@ class PlagiarismService:
         """
         Extract text from a document based on file extension.
         Wrapper around similarity_engine extraction functions.
+        Checks for file existence to handle missing seed data gracefully.
         """
+        if not os.path.exists(file_path):
+            logger.warning(f"File not found on disk: {file_path}. Skipping extraction.")
+            return ""
+            
         try:
             if file_path.endswith('.pdf'):
                 return extract_text_from_pdf(file_path)
@@ -49,7 +54,7 @@ class PlagiarismService:
                 return extract_text_from_txt(file_path)
         except Exception as e:
             logger.error(f"Error extracting text from {file_path}: {e}")
-            raise
+            return ""  # Return empty string instead of raising to keep the scan moving
     
     def store_extracted_text(self, document_id: int, text: str) -> None:
         """

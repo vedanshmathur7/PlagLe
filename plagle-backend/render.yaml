@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: plagle-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 3306
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: PORT
+        value: 8000
+      - key: DEBUG
+        value: "False"
+      - key: LOG_LEVEL
+        value: INFO

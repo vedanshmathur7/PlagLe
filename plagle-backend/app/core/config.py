@@ -41,9 +41,10 @@ class Settings(BaseSettings):
     
     # CORS
     CORS_ORIGINS: list = [
-        "http://localhost:3000",  # React dev server
-        "http://localhost:5173",  # Vite dev server
-        # Add your production frontend URL here
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://plagle.vercel.app",  # Add your potential Vercel domain
+        "*"                           # Allow all for initial deployment (can be restricted later)
     ]
     
     # Logging

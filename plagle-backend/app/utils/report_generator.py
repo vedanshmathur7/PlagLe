@@ -1,7 +1,12 @@
+# OS and time utilities
 import os
 from datetime import datetime
+
+# ReportLab for creating PDF canvases and defining page sizes
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+
+# Database connection
 import mysql.connector
 
 # Ensure reports directory exists

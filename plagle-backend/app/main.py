@@ -2,10 +2,13 @@
 PlagLe FastAPI Application - Main Entry Point
 Production-ready plagiarism detection backend
 """
+# Web framework and standard utilities
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+
+# Standard logging and time tracking
 import logging
 import time
 

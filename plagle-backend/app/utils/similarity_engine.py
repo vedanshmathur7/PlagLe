@@ -1,10 +1,17 @@
+# Document extraction libraries
 import PyPDF2
 import docx
+
+# Natural Language Processing & RegEx
 import re
 import nltk
 from nltk.corpus import stopwords
+
+# Machine Learning text vectorization and math
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# Database connection
 import mysql.connector
 
 # Ensure stopwords are downloaded locally
